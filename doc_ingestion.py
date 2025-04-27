@@ -10,7 +10,7 @@ BOOK_FOLDER = './books'
 COLLECTION_NAME = 'Base_Books'
 CHUNK_SIZE = 1500
 CHUNK_OVERLAP = 175
-CHROMA_PATH = '/Users/ammarmalik/Desktop/ResumeProjects/LegalChatbot/'
+CHROMA_PATH = '/LegalChatbot/'
 
 HEADING_REGEX = r'(?i)(Chapter|Section|Article|Part|Clause|Rule|Subsection)[\s\-]*\d+[A-Za-z\-]*\.?'
 
