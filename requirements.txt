@@ -1,0 +1,5 @@
+chromadb
+PyPDF2
+langchain_text_splitters
+transformers
+torch

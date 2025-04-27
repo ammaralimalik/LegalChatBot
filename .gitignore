@@ -1,1 +1,4 @@
-./ChatBot
+ChatBot/
+chroma/
+*.sqlite3
+*.db
