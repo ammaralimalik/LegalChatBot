@@ -11,5 +11,4 @@ def get_context(prompt):
         query_texts=prompt,
         n_results=3
     )
-    context = ""
     return context
