@@ -2,7 +2,7 @@ import chromadb
 from datetime import datetime
 from embedding_model import LegalEmebddings, test_get_embedding
 
-chroma_client = chromadb.PersistentClient(path='/Users/ammarmalik/Desktop/ResumeProjects/LegalChatBot/')
+chroma_client = chromadb.PersistentClient(path='/LegalChatBot/')
 
 def get_context(prompt):
     collection = chroma_client.get_collection(name="Base_Books", embedding_function=LegalEmebddings())
