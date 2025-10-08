@@ -1,11 +1,5 @@
 # LegalChatBot (Pakistan Law RAG)
 
-[![Stars](https://img.shields.io/github/stars/ammarmalik/LegalChatBot?style=flat&color=gold)](https://github.com/ammarmalik/LegalChatBot/stargazers)
-[![Forks](https://img.shields.io/github/forks/ammarmalik/LegalChatBot?style=flat)](https://github.com/ammarmalik/LegalChatBot/network/members)
-[![Issues](https://img.shields.io/github/issues/ammarmalik/LegalChatBot)](https://github.com/ammarmalik/LegalChatBot/issues)
-[![Last Commit](https://img.shields.io/github/last-commit/ammarmalik/LegalChatBot)](https://github.com/ammarmalik/LegalChatBot/commits/main)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/ammarmalik/LegalChatBot/pulls)
-[![License](https://img.shields.io/github/license/ammarmalik/LegalChatBot)](https://github.com/ammarmalik/LegalChatBot/blob/main/LICENSE)
 
 [![Python](https://img.shields.io/badge/Python-3.13-blue?logo=python&logoColor=white)](https://www.python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.x-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
@@ -13,6 +7,12 @@
 [![Transformers](https://img.shields.io/badge/HuggingFace-Transformers-yellow?logo=huggingface&logoColor=white)](https://huggingface.co/docs/transformers)
 [![Embeddings](https://img.shields.io/badge/Embeddings-Legal--BERT-8A2BE2)](https://huggingface.co/nlpaueb/legal-bert-base-uncased)
 
+![tag](https://img.shields.io/badge/topic-LLM)
+![tag](https://img.shields.io/badge/topic-deep--learning-informational)
+![tag](https://img.shields.io/badge/topic-pytorch-informational)
+![tag](https://img.shields.io/badge/topic-streamlit-informational)
+![tag](https://img.shields.io/badge/topic-legal-informational)
+![tag](https://img.shields.io/badge/topic-machine--learning-informational)
 A local Retrieval-Augmented Generation (RAG) chatbot focused on Pakistani law. It ingests legal PDFs (e.g., Constitution, Penal Code, Contract Act), builds a persistent Chroma vector store using Legal-BERT embeddings, and answers queries via a local LLM API.
 
 
