@@ -1,11 +1,14 @@
 # LegalChatBot (Pakistan Law RAG)
 
+<div align="center">
 
 [![Python](https://img.shields.io/badge/Python-3.13-blue?logo=python&logoColor=white)](https://www.python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.x-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
 [![ChromaDB](https://img.shields.io/badge/Chroma-DB-009688)](https://www.trychroma.com)
 [![Transformers](https://img.shields.io/badge/HuggingFace-Transformers-yellow?logo=huggingface&logoColor=white)](https://huggingface.co/docs/transformers)
 [![Embeddings](https://img.shields.io/badge/Embeddings-Legal--BERT-8A2BE2)](https://huggingface.co/nlpaueb/legal-bert-base-uncased)
+
+<br/>
 
 ![tag](https://img.shields.io/badge/topic-LLM)
 ![tag](https://img.shields.io/badge/topic-deep--learning-informational)
@@ -15,7 +18,7 @@
 ![tag](https://img.shields.io/badge/topic-machine--learning-informational)
 A local Retrieval-Augmented Generation (RAG) chatbot focused on Pakistani law. It ingests legal PDFs (e.g., Constitution, Penal Code, Contract Act), builds a persistent Chroma vector store using Legal-BERT embeddings, and answers queries via a local LLM API.
 
-
+</div>
 ## Features
 - Legal PDF ingestion with heading-aware chunking
 - Persistent Chroma DB collection (`Base_Books`)
