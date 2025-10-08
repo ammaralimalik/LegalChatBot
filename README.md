@@ -16,9 +16,11 @@
 ![tag](https://img.shields.io/badge/topic-streamlit-informational)
 ![tag](https://img.shields.io/badge/topic-legal-informational)
 ![tag](https://img.shields.io/badge/topic-machine--learning-informational)
-A local Retrieval-Augmented Generation (RAG) chatbot focused on Pakistani law. It ingests legal PDFs (e.g., Constitution, Penal Code, Contract Act), builds a persistent Chroma vector store using Legal-BERT embeddings, and answers queries via a local LLM API.
 
 </div>
+
+A local Retrieval-Augmented Generation (RAG) chatbot focused on Pakistani law. It ingests legal PDFs (e.g., Constitution, Penal Code, Contract Act), builds a persistent Chroma vector store using Legal-BERT embeddings, and answers queries via a local LLM API.
+
 ## Features
 - Legal PDF ingestion with heading-aware chunking
 - Persistent Chroma DB collection (`Base_Books`)
