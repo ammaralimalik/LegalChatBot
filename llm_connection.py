@@ -1,63 +1,51 @@
 import json
-import re
+import logging
+import os
+import random
+import time
 
 import requests
 
-API_URL = "http://127.0.0.1:1234/v1/chat/completions"
-MODEL = "deepseek-r1-distill-qwen-7b"
+logger = logging.getLogger(__name__)
+
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
+
+# Free OpenRouter models rate-limit hard (HTTP 429), especially during eval runs
+# that fire many requests back to back. Retry with exponential backoff, honoring
+# the server's Retry-After header when present.
+MAX_RETRIES = int(os.environ.get("OPENROUTER_MAX_RETRIES", "5"))
+RETRY_BASE_DELAY = float(os.environ.get("OPENROUTER_RETRY_BASE_DELAY", "5"))
+RETRY_MAX_DELAY = float(os.environ.get("OPENROUTER_RETRY_MAX_DELAY", "60"))
 SYSTEM_PROMPT = (
     "You are a helpful legal assistant meant to help attornies find meaningful "
     "strategies and knowledge related to their cases. Always assume you are speaking "
     "to a professional and answer each and every question they may have. Always keep "
     "legal questions in the context of Pakistan"
 )
-THINKING_START = "<think>"
-THINKING_END = "</think>"
 
 
-class _ThinkingFilter:
-    """Strip model thinking blocks while streaming partial tokens."""
+def _get_api_key() -> str:
+    api_key = os.environ.get("OPENROUTER") or os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "Set OPENROUTER in .env or OPENROUTER_API_KEY in the environment."
+        )
+    return api_key.strip("'\"")
 
-    def __init__(self):
-        self._buffer = ""
-        self._in_thinking = False
 
-    def push(self, text: str):
-        self._buffer += text
+def _headers() -> dict:
+    return {
+        "Authorization": f"Bearer {_get_api_key()}",
+        "Content-Type": "application/json",
+    }
 
-        while True:
-            if self._in_thinking:
-                end_idx = self._buffer.find(THINKING_END)
-                if end_idx == -1:
-                    return
-                self._buffer = self._buffer[end_idx + len(THINKING_END) :]
-                self._in_thinking = False
-                continue
 
-            start_idx = self._buffer.find(THINKING_START)
-            if start_idx == -1:
-                holdback = 0
-                for i in range(min(len(self._buffer), len(THINKING_START) - 1), 0, -1):
-                    if THINKING_START.startswith(self._buffer[-i:]):
-                        holdback = i
-                        break
-
-                if holdback < len(self._buffer):
-                    out = self._buffer[:-holdback] if holdback else self._buffer
-                    self._buffer = self._buffer[-holdback:] if holdback else ""
-                    if out:
-                        yield out
-                return
-
-            if start_idx > 0:
-                yield self._buffer[:start_idx]
-            self._buffer = self._buffer[start_idx + len(THINKING_START) :]
-            self._in_thinking = True
-
-    def flush(self):
-        if not self._in_thinking and self._buffer:
-            yield self._buffer
-            self._buffer = ""
+def _build_messages(prompt: str) -> list[dict]:
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": prompt},
+    ]
 
 
 def _iter_stream_tokens(response):
@@ -83,39 +71,64 @@ def _iter_stream_tokens(response):
             yield content
 
 
+def _retry_delay(response, attempt: int) -> float:
+    """Seconds to wait before the next attempt, preferring the Retry-After header."""
+    retry_after = response.headers.get("Retry-After")
+    if retry_after:
+        try:
+            return max(float(retry_after), 1.0)
+        except ValueError:
+            pass
+    backoff = min(RETRY_BASE_DELAY * (2 ** attempt), RETRY_MAX_DELAY)
+    return backoff + random.uniform(0, 1)  # jitter to avoid lockstep retries
+
+
+def _post(prompt: str, *, stream: bool):
+    """POST to OpenRouter, retrying with backoff on 429. Returns the OK response."""
+    payload = {
+        "model": MODEL,
+        "messages": _build_messages(prompt),
+        "temperature": 0.85,
+        "reasoning": {"enabled": True},
+    }
+    if stream:
+        payload["stream"] = True
+
+    for attempt in range(MAX_RETRIES + 1):
+        response = requests.post(
+            API_URL,
+            headers=_headers(),
+            json=payload,
+            stream=stream,
+            timeout=(10, 300),
+        )
+        if response.status_code == 429 and attempt < MAX_RETRIES:
+            delay = _retry_delay(response, attempt)
+            logger.warning(
+                "OpenRouter rate limited (429); retrying in %.1fs "
+                "(attempt %d/%d).",
+                delay,
+                attempt + 1,
+                MAX_RETRIES,
+            )
+            response.close()
+            time.sleep(delay)
+            continue
+        response.raise_for_status()
+        return response
+
+    # Loop only exits via return or raise_for_status; this satisfies type checkers.
+    raise RuntimeError("Exhausted OpenRouter retries without a response.")
+
+
 def query_model(prompt):
-    """Stream response tokens from the local LLM."""
-    response = requests.post(
-        API_URL,
-        headers={"Content-Type": "application/json"},
-        json={
-            "model": MODEL,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.85,
-            "stream": True,
-        },
-        stream=True,
-        timeout=(10, 300),
-    )
-    response.raise_for_status()
-
-    thinking_filter = _ThinkingFilter()
-    for token in _iter_stream_tokens(response):
-        yield from thinking_filter.push(token)
-
-    yield from thinking_filter.flush()
+    """Stream response tokens from OpenRouter."""
+    response = _post(prompt, stream=True)
+    yield from _iter_stream_tokens(response)
 
 
 def query_model_complete(prompt: str) -> str:
-    """Collect the full streamed response as a single string."""
-    content = "".join(query_model(prompt))
-    cleaned = re.sub(
-        rf"{re.escape(THINKING_START)}.*?{re.escape(THINKING_END)}",
-        "",
-        content,
-        flags=re.DOTALL,
-    )
-    return cleaned.strip()
+    """Collect the full response as a single string."""
+    response = _post(prompt, stream=False)
+    message = response.json()["choices"][0]["message"]
+    return (message.get("content") or "").strip()
