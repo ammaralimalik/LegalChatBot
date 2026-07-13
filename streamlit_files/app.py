@@ -24,10 +24,10 @@ if prompt := st.chat_input("Ask a legal question..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
+        with st.spinner("Searching documents..."):
             context = database.get_context(prompt)
 
-            full_prompt = f"""You are a helpful legal assistant. Use the context below to answer the question.
+        full_prompt = f"""You are a helpful legal assistant. Use the context below to answer the question.
 
 Context:
 {context}
@@ -35,14 +35,14 @@ Context:
 Question: {prompt}
 Answer:"""
 
-            full_response = ""
-            response_container = st.empty()
+        full_response = ""
+        response_container = st.empty()
 
-            for token in llm_connection.query_model(full_prompt):
-                full_response += token
-                response_container.markdown(full_response + "▌")
+        for token in llm_connection.query_model(full_prompt):
+            full_response += token
+            response_container.markdown(full_response + "▌")
 
-            response_container.markdown(full_response)
+        response_container.markdown(full_response)
 
     st.session_state.messages.append({"role": "assistant", "content": full_response})
 
