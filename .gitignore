@@ -2,3 +2,7 @@ ChatBot/
 chroma/
 *.sqlite3
 *.db
+.env
+.deepeval/
+.rate_limit_state.json
+.claude/
