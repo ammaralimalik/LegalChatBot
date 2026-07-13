@@ -25,7 +25,7 @@ if prompt := st.chat_input("Ask a legal question..."):
 
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
-            context = "\n\n".join(database.get_context(prompt))
+            context = database.get_context(prompt)
 
             full_prompt = f"""You are a helpful legal assistant. Use the context below to answer the question.
 
