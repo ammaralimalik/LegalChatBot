@@ -17,13 +17,33 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CHROMA_PATH = str(Path(__file__).resolve().parent)
 # Legal headings (e.g. "Section 5", "Article 12") and numbered sections (e.g. "302. Punishment").
+# The numbered-section lookahead accepts what actually follows section numbers
+# in these PDFs: a plain capital ("34. When"), a quoted term of art
+# ('17. "Fraud"'), a parenthesised sub-clause with no space ("14.(1)No
+# person"), or an unspaced capital ("16.Freedom"). Hyphenated insertions like
+# "120- A Definition" are their own alternative.
 HEADING_REGEX = re.compile(
     r'(?i)(?:'
     r'(?:Chapter|Section|Article|Part|Clause|Rule|Subsection|Order)[\s\-:]*\d+[A-Za-z\-]*\.?'
     r'|'
-    r'\d{1,4}[A-Za-z]?\.(?=\s+[A-Z])'
+    r'\d{1,4}[A-Za-z]?\s?\.(?=\s*(?:\(\d{1,2}\))?\s*["“]?\s*[A-Z])'  # "100 ." OCR space tolerated
+    r'|'
+    r'\d{1,4}-\s?[A-Z](?=\s+[A-Z])'
     r')'
 )
+
+# These statutes open with a contents listing whose entries ("11. Who are
+# competent to contract") match HEADING_REGEX just like the real sections do.
+# A contents entry is a heading with no body, so it carries no answer text yet
+# competes with the section it names at retrieval time. Require a real body.
+MIN_BODY_CHARS = 60
+
+# legal-bert reads at most 512 wordpieces and silently truncates the rest, so a
+# chunk longer than roughly this many characters is partly invisible to search.
+# Splitting keeps whole sections (e.g. s.73 of the Contract Act, ~9.8k chars)
+# reachable instead of indexing only their opening lines.
+MAX_CHUNK_CHARS = 1600
+PARAGRAPH_BREAK = re.compile(r'\n\s*\n')
 
 
 @dataclass
@@ -88,6 +108,49 @@ class DocumentIngestor:
         match = HEADING_REGEX.search(chunk)
         return match.group(0).strip() if match else ""
 
+    @staticmethod
+    def _has_body(chunk: str) -> bool:
+        """True when a chunk carries text beyond its heading label."""
+        match = HEADING_REGEX.match(chunk)
+        body = chunk[match.end():] if match else chunk
+        return len(body.strip()) >= MIN_BODY_CHARS
+
+    @staticmethod
+    def _split_oversized(chunk: str) -> List[str]:
+        """Break a chunk that exceeds the embedding window into readable pieces.
+
+        Splits on paragraph boundaries where possible so each piece stays
+        coherent, falling back to a hard character cut for solid blocks of text.
+        """
+        if len(chunk) <= MAX_CHUNK_CHARS:
+            return [chunk]
+
+        pieces: List[str] = []
+        current = ''
+        for paragraph in PARAGRAPH_BREAK.split(chunk):
+            paragraph = paragraph.strip()
+            if not paragraph:
+                continue
+
+            if len(paragraph) > MAX_CHUNK_CHARS:
+                if current:
+                    pieces.append(current)
+                    current = ''
+                for start in range(0, len(paragraph), MAX_CHUNK_CHARS):
+                    pieces.append(paragraph[start:start + MAX_CHUNK_CHARS].strip())
+                continue
+
+            candidate = f'{current}\n\n{paragraph}' if current else paragraph
+            if len(candidate) > MAX_CHUNK_CHARS:
+                pieces.append(current)
+                current = paragraph
+            else:
+                current = candidate
+
+        if current:
+            pieces.append(current)
+        return [piece for piece in pieces if piece]
+
     def chunk_text(self, text: str) -> List[str]:
         """Split text into chunks of each heading and the text beneath it."""
         matches = list(HEADING_REGEX.finditer(text))
@@ -95,18 +158,22 @@ class DocumentIngestor:
             stripped = text.strip()
             return [stripped] if stripped else []
 
-        chunks: List[str] = []
+        sections: List[str] = []
 
         preamble = text[:matches[0].start()].strip()
         if preamble:
-            chunks.append(preamble)
+            sections.append(preamble)
 
         for index, match in enumerate(matches):
             start = match.start()
             end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
             chunk = text[start:end].strip()
-            if chunk:
-                chunks.append(chunk)
+            if chunk and self._has_body(chunk):
+                sections.append(chunk)
+
+        chunks: List[str] = []
+        for section in sections:
+            chunks.extend(self._split_oversized(section))
 
         return chunks
 
